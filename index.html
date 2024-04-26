@@ -1,0 +1,342 @@
+<document_content>
+    <!DOCTYPE html>
+
+    <html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>IoT Monitoring System</title>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #ffffff;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .header {
+                background-color: #3498db;
+                color: #ffffff;
+                padding: 20px;
+                text-align: center;
+            }
+
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+
+            .container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                padding: 20px;
+            }
+
+            .graph-container {
+                display: center;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                flex: 1;
+            }
+
+            .graph {
+                flex-basis: 48%;
+                padding: 20px;
+                background-color: #fff;
+            }
+
+            .graph-title {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                color: #3498db;
+            }
+
+            .input-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .input-group {
+                margin: 0 10px;
+            }
+
+            .input-group label {
+                font-weight: bold;
+                margin-right: 5px;
+                color: #555;
+            }
+
+            .input-group input[type="checkbox"] {
+                margin-right: 5px;
+            }
+
+            .input-group input[type="text"] {
+                width: 100px;
+                padding: 5px;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+            }
+
+            .footer {
+                background-color: #34495e;
+                color: #fff;
+                padding: 10px;
+                text-align: center;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <div class="graph-container">
+                <div class="graph">
+                    <div id="temperature-graph"></div>
+                </div>
+                <div class="graph">
+                    <div id="humidity-graph"></div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-group">
+                    <label for="window-status">Window Status:</label>
+                    <input type="checkbox" id="window-status">
+                </div>
+                <div class="input-group">
+                    <label for="oven-temperature">Oven Temperature:</label>
+                    <input type="text" id="oven-temperature" placeholder="0"> °C
+                </div>
+                <div class="input-group">
+                    <button id="confirm-button">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <script> // Function to fetch data from the server
+            function fetchData() {
+                fetch('get_data.php').then(response => response.json()).then(data => {
+                    // Assuming predict.php returns predictions for both temperature and humidity
+                    fetch('predict.php').then(response => response.json()).then(predictions => {
+                        const temperaturePredictions = generatePredictions(data, predictions.temperature, 'temperature');
+                        const humidityPredictions = generatePredictions(data, predictions.humidity, 'humidity');
+
+                        plotTemperatureGraph(data, temperaturePredictions);
+                        plotHumidityGraph(data, humidityPredictions);
+                    });
+                });
+            }
+
+            function generatePredictions(data, predictionValues, type) {
+                const lastEntry = data[0];
+                const lastTimestamp = new Date(lastEntry.timestamp);
+                const lastValue = lastEntry[type]; // dynamically use 'temperature' or 'humidity'
+                const predictions = [];
+
+                // Include the last historical point as the first prediction point
+                predictions.push({
+                    timestamp: lastTimestamp.toISOString(),
+                    value: lastValue
+                });
+
+                // Start generating future predictions
+                for (let i = 1; i <= predictionValues.length; i++) {
+                    const futureTimestamp = new Date(lastTimestamp.getTime());
+                    futureTimestamp.setMinutes(futureTimestamp.getMinutes() + i * 1);
+                    predictions.push({
+                        timestamp: futureTimestamp.toISOString(),
+                        value: predictionValues[i - 1]
+                    });
+                }
+
+                return predictions;
+            }
+
+
+
+
+
+            function fetchLastUserInput() {
+                fetch('get_last_input.php').then(response => response.json()).then(data => {
+                    document.getElementById('window-status').checked = data.window_status;
+                    document.getElementById('oven-temperature').placeholder = data.oven_temperature;
+                });
+            }
+
+            // Function to plot the temperature graph
+            function plotTemperatureGraph(data, predictions) {
+                const timestamps = data.map(entry => new Date(entry.timestamp));
+                const temperatures = data.map(entry => entry.temperature);
+
+                const historicalTrace = {
+                    x: timestamps,
+                    y: temperatures,
+                    mode: 'lines',
+                    name: 'Historical Temperature',
+                    line: { color: 'blue' }
+                };
+
+                const predictionTimestamps = predictions.map(entry => new Date(entry.timestamp));
+                const predictionTemperatures = predictions.map(entry => entry.value);
+
+                const predictionTrace = {
+                    x: predictionTimestamps,
+                    y: predictionTemperatures,
+                    mode: 'lines',
+                    name: 'Temperature Prediction',
+                    line: { dash: 'dot' }
+                };
+
+                const layout = {
+                    title: 'Temperature',
+                    xaxis: { title: 'Timestamp', type: 'date' },
+                    yaxis: { title: 'Temperature (°C)' }
+                };
+
+                Plotly.newPlot('temperature-graph', [historicalTrace, predictionTrace], layout);
+            }
+
+            function plotHumidityGraph(data, predictions) {
+                const timestamps = data.map(entry => new Date(entry.timestamp));
+                const humidities = data.map(entry => entry.humidity);
+
+                const historicalTrace = {
+                    x: timestamps,
+                    y: humidities,
+                    mode: 'lines',
+                    name: 'Historical Humidity',
+                    line: { color: 'blue' }
+                };
+
+                const predictionTimestamps = predictions.map(entry => new Date(entry.timestamp));
+                const predictionHumidities = predictions.map(entry => entry.value);
+
+                const predictionTrace = {
+                    x: predictionTimestamps,
+                    y: predictionHumidities,
+                    mode: 'lines',
+                    name: 'Humidity Prediction',
+                    line: { dash: 'dot' }
+                };
+
+                const layout = {
+                    title: 'Humidity',
+                    xaxis: { title: 'Timestamp' },
+                    yaxis: { title: 'Humidity (%)' }
+                };
+
+                Plotly.newPlot('humidity-graph', [historicalTrace, predictionTrace], layout);
+            }
+
+
+            function generateTemperaturePredictions(data) {
+                const lastEntry = data[0];
+                const lastTemperature = lastEntry.temperature;
+                const lastTimestamp = new Date(lastEntry.timestamp);
+                const predictions = [];
+
+                for (let i = 0; i < 5; i++) {
+                    const futureTimestamp = new Date(lastTimestamp);
+                    futureTimestamp.setMinutes(futureTimestamp.getMinutes() + (i) * 5);
+                    let prediction;
+
+                    if (i === 0) {
+                        prediction = lastTemperature;
+                    }
+
+                    else {
+                        prediction = predictions[i - 1].temperature + (Math.random() - 0.5) * 2;
+                    }
+
+                    predictions.push({
+                        timestamp: futureTimestamp.toISOString(),
+                        temperature: prediction
+                    });
+                }
+
+                return predictions;
+            }
+
+            function generateHumidityPredictions(data) {
+                const lastEntry = data[0];
+                const lastHumidity = lastEntry.humidity;
+                const lastTimestamp = new Date(lastEntry.timestamp);
+                const predictions = [];
+
+                for (let i = 0; i < 5; i++) {
+                    const futureTimestamp = new Date(lastTimestamp);
+                    futureTimestamp.setMinutes(futureTimestamp.getMinutes() + (i) * 5);
+                    let prediction;
+
+                    if (i === 0) {
+                        prediction = lastHumidity;
+                    }
+
+                    else {
+                        prediction = predictions[i - 1].humidity + (Math.random() - 0.5) * 2;
+                    }
+
+                    predictions.push({
+                        timestamp: futureTimestamp.toISOString(),
+                        humidity: prediction
+                    });
+                }
+
+                return predictions;
+            }
+
+            // Function to store user input
+            function storeUserInput() {
+                const windowStatus = document.getElementById('window-status').checked;
+                const ovenTemperature = document.getElementById('oven-temperature').value;
+
+                const data = {
+                    window_status: windowStatus,
+                    oven_temperature: ovenTemperature
+                };
+
+                fetch('store_input.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log('User input stored successfully');
+                            // Optionally, you can update the UI to indicate success
+                        } else {
+                            console.error('Failed to store user input');
+                            // Optionally, you can show an error message to the user
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Optionally, you can show an error message to the user
+                    });
+            }
+
+            // Event listeners for user input
+            document.getElementById('confirm-button').addEventListener('click', storeUserInput);
+
+            // Fetch data initially
+            fetchData();
+            fetchLastUserInput();
+
+            // Fetch data periodically (every 5 minutes)
+            setInterval(fetchData, 5 * 60 * 1000);
+            // setInterval(fetchLastUserInput, 5 * 60 * 1000) </script>
+    </body>
+
+    </html>
