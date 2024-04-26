@@ -7,14 +7,6 @@ Welcome to the IoT Indoor Monitoring System repository! This project aims to dev
 - [Features](#features)
 - [Hardware Requirements](#hardware-requirements)
 - [Software Requirements](#software-requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Data Collection](#data-collection)
-- [Data Visualization](#data-visualization)
-- [Predictive Modeling](#predictive-modeling)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
 
 ## Project Overview
 The IoT Indoor Monitoring System is designed to collect, store, analyze, and visualize temperature and humidity data from an indoor environment. By leveraging IoT devices, such as the Raspberry Pi and DHT11 sensor, along with web technologies and machine learning algorithms, the system provides real-time insights and predictive capabilities to optimize indoor climate conditions.
